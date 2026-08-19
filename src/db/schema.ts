@@ -106,6 +106,7 @@ export const gasoilConfig = pgTable('gasoil_config', {
   nivelActual: numeric('nivel_actual', { mode: 'number' }).notNull(),
   alertaNivelMinimo: numeric('alerta_nivel_minimo', { mode: 'number' }).notNull(),
   precioPorGalonDefecto: numeric('precio_por_galon_defecto', { mode: 'number' }).notNull(),
+  precioCostoGalon: numeric('precio_costo_galon', { mode: 'number' }),
 });
 
 export const gasoilCompras = pgTable('gasoil_compras', {

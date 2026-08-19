@@ -245,12 +245,9 @@ export const ServiciosView: React.FC = () => {
                 onChange={(e) => setUnidadMedida(e.target.value)}
                 className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100 focus:border-amber-500 focus:outline-none font-bold"
               >
-                <option value="HORA">HORA (Cobro por Horas Trabajadas)</option>
-                <option value="VIAJE">VIAJE (Cobro por Viaje / Flete)</option>
-                <option value="METRO">METRO (Cobro por Metro Cúbico / Material)</option>
-                <option value="m3">m³ (Metro Cúbico)</option>
-                <option value="tonelada">Tonelada</option>
-                <option value="unidad">Unidad / Global</option>
+                <option value="HORA">HORA — para Conduce de Equipos Pesados</option>
+                <option value="m3">m³ — para Conduce de Materiales / Volteo</option>
+                <option value="VIAJE">VIAJE — para Conduce de Materiales / Volteo (flete)</option>
               </select>
             </div>
 

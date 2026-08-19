@@ -431,6 +431,7 @@ export const DatabaseRepository = {
       nivelActual: 0,
       alertaNivelMinimo: 0,
       precioPorGalonDefecto: 0,
+      precioCostoGalon: 0,
     };
   },
 
@@ -448,6 +449,10 @@ export const DatabaseRepository = {
         config.precioPorGalonDefecto !== undefined
           ? Number(config.precioPorGalonDefecto)
           : existing?.precioPorGalonDefecto || 0,
+      precioCostoGalon:
+        config.precioCostoGalon !== undefined
+          ? Number(config.precioCostoGalon)
+          : existing?.precioCostoGalon ?? existing?.precioPorGalonDefecto ?? 0,
     };
     if (existing) {
       const [updated] = await db
@@ -474,7 +479,7 @@ export const DatabaseRepository = {
   async saveCompraGasoil(compra: Partial<CompraGasoil>): Promise<CompraGasoil> {
     const config = await this.getConfiguracionGasoil();
     const galones = Number(compra.galones) || 0;
-    const precioPorGalon = Number(compra.precioPorGalon) || config.precioPorGalonDefecto;
+    const precioPorGalon = Number(compra.precioPorGalon) || config.precioCostoGalon || config.precioPorGalonDefecto;
     const total = compra.total !== undefined ? Number(compra.total) : galones * precioPorGalon;
 
     const [created] = await db

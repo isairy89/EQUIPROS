@@ -105,7 +105,7 @@ export const ReportesView: React.FC = () => {
       group.conduces.push(c);
       group.totalConduces += 1;
       group.totalHoras += Number(c.horasTrabajadas || (c.unidadMedida === 'HORA' ? c.cantidad : 0));
-      group.totalViajes += Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1));
+      group.totalViajes += Number(c.viajes || 0);
       group.totalM3 += Number(c.unidadMedida === 'METRO' || c.unidadMedida === 'm3' ? c.cantidad : 0);
       group.totalMonto += Number(c.totalMonto || 0);
       if (c.clienteNombre) group.clientes.add(c.clienteNombre);
@@ -133,7 +133,7 @@ export const ReportesView: React.FC = () => {
           0
         );
         const totalViajes = eqConduces.reduce(
-          (sum, c) => sum + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)),
+          (sum, c) => sum + Number(c.viajes || 0),
           0
         );
         const totalM3 = eqConduces.reduce(
@@ -169,7 +169,7 @@ export const ReportesView: React.FC = () => {
           0
         );
         const totalViajes = cliConduces.reduce(
-          (sum, c) => sum + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)),
+          (sum, c) => sum + Number(c.viajes || 0),
           0
         );
         const totalM3 = cliConduces.reduce(
@@ -241,7 +241,7 @@ export const ReportesView: React.FC = () => {
 
   const summaryTotalViajes = useMemo(() => {
     return filteredConduces.reduce(
-      (sum, c) => sum + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)),
+      (sum, c) => sum + Number(c.viajes || 0),
       0
     );
   }, [filteredConduces]);

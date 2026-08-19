@@ -24,8 +24,8 @@ import { Flame, Lock, User, ShieldCheck } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
   const { handleLogin } = useApp();
-  const [user, setUser] = useState('admin');
-  const [pass, setPass] = useState('admin123');
+  const [user, setUser] = useState('');
+  const [pass, setPass] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,13 +91,6 @@ const LoginScreen: React.FC = () => {
             {isSubmitting ? 'Iniciando sesión...' : 'Ingresar al Sistema'}
           </button>
         </form>
-
-        <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 text-center">
-          <p className="text-[11px] text-slate-400">
-            Credenciales de prueba: <strong className="text-amber-400 font-mono">admin</strong> /{' '}
-            <strong className="text-amber-400 font-mono">admin123</strong>
-          </p>
-        </div>
       </div>
     </div>
   );

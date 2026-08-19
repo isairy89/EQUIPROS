@@ -198,7 +198,7 @@ export function exportConducesListPDF(
   doc.text(title + ' | Período: ' + dateRange, 14, 19);
 
   const totalHoras = conduces.reduce((sum, c) => sum + Number(c.horasTrabajadas || (c.unidadMedida === 'HORA' ? c.cantidad : 0)), 0);
-  const totalViajes = conduces.reduce((sum, c) => sum + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)), 0);
+  const totalViajes = conduces.reduce((sum, c) => sum + Number(c.viajes || 0), 0);
   const totalMonto = conduces.reduce((sum, c) => sum + Number(c.totalMonto), 0);
 
   const tableBody = conduces.map((c) => [
@@ -468,7 +468,7 @@ export function exportDriverPayrollPDF(
   doc.text(empleado.cargo, 90, 53);
   doc.text(empleado.cedula || 'N/D', 145, 53);
 
-  const totalViajes = conducesEmpleado.length;
+  const totalViajes = conducesEmpleado.reduce((acc, c) => acc + Number(c.viajes || 0), 0);
   const totalHoras = conducesEmpleado.reduce(
     (acc, c) => acc + Number(c.horasTrabajadas || (c.unidadMedida === 'HORA' ? c.cantidad : 0)),
     0
@@ -480,7 +480,8 @@ export function exportDriverPayrollPDF(
 
   const pagoViajes = totalViajes * (empleado.pagoPorViaje || 0);
   const pagoMetros = totalM3 * (empleado.pagoPorMetro || 0);
-  const totalProduccion = pagoViajes + pagoMetros;
+  const pagoHoras = totalHoras * (empleado.pagoPorHora || 0);
+  const totalProduccion = pagoViajes + pagoMetros + pagoHoras;
 
   // Trips / Services Table
   const tripRows = conducesEmpleado.map((c) => [
@@ -517,9 +518,9 @@ export function exportDriverPayrollPDF(
     head: [['CONCEPTO DE PAGO / RENDIMIENTO', 'CANTIDAD / BASE', 'TARIFA RD$', 'TOTAL A LIQUIDAR RD$']],
     body: [
       ['Salario Base (Período)', 'Nómina Quincenal/Mensual', '-', formatCurrency(empleado.salarioBase || 0)],
+      ['Pago por Horas Operadas', `${formatNumber(totalHoras, 1)} hrs`, formatCurrency(empleado.pagoPorHora || 0), formatCurrency(pagoHoras)],
       ['Pago por Viajes Realizados', `${totalViajes} viajes`, formatCurrency(empleado.pagoPorViaje || 0), formatCurrency(pagoViajes)],
       ['Bono por Volumen (m³)', `${formatNumber(totalM3, 2)} m³`, formatCurrency(empleado.pagoPorMetro || 0), formatCurrency(pagoMetros)],
-      ['Horas Operadas Registradas', `${formatNumber(totalHoras, 1)} hrs`, 'Control Horas', 'Incluido en Base'],
     ],
     headStyles: {
       fillColor: [241, 245, 249],

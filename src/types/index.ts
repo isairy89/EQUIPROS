@@ -156,7 +156,6 @@ export interface ConteoGasoil {
   galonesSistema: number;
   diferencia: number;
   responsable?: string;
-  realizadoPor?: string;
   observacion?: string;
   notas?: string;
 }

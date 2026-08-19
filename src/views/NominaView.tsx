@@ -51,7 +51,7 @@ export const NominaView: React.FC = () => {
           (c) => c.choferId === emp.id || c.choferNombre === emp.nombre
         );
         const viajesRealizados = empConduces.reduce(
-          (sum, c) => sum + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)),
+          (sum, c) => sum + Number(c.viajes || 0),
           0
         );
         const horasOperadas = empConduces.reduce(

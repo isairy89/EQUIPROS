@@ -43,7 +43,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     0
   );
   const totalViajes = conduces.reduce(
-    (acc, c) => acc + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)),
+    (acc, c) => acc + Number(c.viajes || 0),
     0
   );
   const totalM3 = conduces.reduce(
@@ -68,7 +68,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       0
     );
     const viajes = cliConduces.reduce(
-      (acc, c) => acc + Number(c.viajes || (c.unidadMedida === 'VIAJE' ? c.cantidad : 1)),
+      (acc, c) => acc + Number(c.viajes || 0),
       0
     );
     const monto = cliConduces.reduce((acc, c) => acc + Number(c.totalMonto || 0), 0);

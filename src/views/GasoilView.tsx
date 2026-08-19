@@ -188,7 +188,7 @@ export const GasoilView: React.FC<GasoilViewProps> = ({
       galonesSistema,
       galonesMedidos: galonesFisicos,
       diferencia,
-      realizadoPor: conteoRealizadoPor,
+      responsable: conteoRealizadoPor,
       notas: conteoNotas,
     });
     setIsConteoModalOpen(false);
@@ -639,7 +639,7 @@ export const GasoilView: React.FC<GasoilViewProps> = ({
                             {Number(pctDiff) > 0 ? `+${pctDiff}` : pctDiff}%
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-200">{co.realizadoPor}</td>
+                        <td className="py-3 px-4 text-slate-200">{co.responsable}</td>
                         <td className="py-3 px-4 text-slate-400">{co.notas || '-'}</td>
                         <td className="py-3 px-4 text-center">
                           <button

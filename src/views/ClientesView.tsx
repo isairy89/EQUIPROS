@@ -106,7 +106,12 @@ export const ClientesView: React.FC = () => {
     if (!selectedClientForPrices || !priceServicioId) return;
 
     const serv = servicios.find((s) => s.id === priceServicioId);
+    // Si ya existe una tarifa especial para este cliente+servicio, se actualiza en vez de duplicarla.
+    const existente = preciosCliente.find(
+      (p) => p.clienteId === selectedClientForPrices.id && p.servicioId === priceServicioId
+    );
     await savePrecioCliente({
+      id: existente?.id,
       clienteId: selectedClientForPrices.id,
       clienteNombre: selectedClientForPrices.nombre,
       servicioId: priceServicioId,
