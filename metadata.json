@@ -1,0 +1,8 @@
+{
+  "name": "Remix Control de Conduces y Producción - EQUIPROCI",
+  "description": "Sistema de gestión administrativa para el registro de conduces, control de producción, tarifas por cliente y reportes para clientes y nómina.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
