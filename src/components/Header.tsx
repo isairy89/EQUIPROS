@@ -38,6 +38,10 @@ export const Header: React.FC<HeaderProps> = ({
       title: 'Clientes y Proyectos',
       desc: 'Cartera de clientes, obras activas y tarifas especiales por cliente',
     },
+    minas: {
+      title: 'Minas',
+      desc: 'Origen del material transportado en los conduces de materiales/volteo',
+    },
     servicios: {
       title: 'Catálogo de Servicios y Precios',
       desc: 'Alquiler de maquinaria por hora, materiales por m³ y fletes de transporte',

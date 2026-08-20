@@ -26,20 +26,23 @@ import {
 import {
   exportConducesListPDF,
   exportReporteMinaPDF,
+  exportReporteMinaAgregadoPDF,
   exportReporteEquipoPDF,
+  exportFacturaProformaPDF,
 } from '../utils/pdfExport.ts';
 import { exportConducesToExcel, exportGasoilToExcel } from '../utils/excelExport.ts';
 import * as XLSX from 'xlsx';
 
 export const ReportesView: React.FC = () => {
-  const { conduces, clientes, servicios, equipos, gasoilDespachos, empleados } = useApp();
+  const { conduces, clientes, minas, servicios, equipos, gasoilDespachos, empleados } = useApp();
 
-  const [reportType, setReportType] = useState<'minas' | 'equipos' | 'clientes' | 'combustible' | 'conduces'>('minas');
+  const [reportType, setReportType] = useState<'minas' | 'minaAgregado' | 'equipos' | 'clientes' | 'combustible' | 'conduces'>('minas');
   const [fechaInicio, setFechaInicio] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
   );
   const [fechaFin, setFechaFin] = useState(getTodayString());
   const [selectedMina, setSelectedMina] = useState<string>('ALL');
+  const [selectedMinaId, setSelectedMinaId] = useState<string>('ALL');
   const [selectedEquipoFicha, setSelectedEquipoFicha] = useState<string>('ALL');
   const [selectedClienteId, setSelectedClienteId] = useState<string>('ALL');
 
@@ -66,9 +69,10 @@ export const ReportesView: React.FC = () => {
         const loc = (c.proyectoMina || c.obra || '').trim().toLowerCase();
         if (loc !== selectedMina.toLowerCase()) return false;
       }
+      if (selectedMinaId !== 'ALL' && c.minaId !== selectedMinaId) return false;
       return true;
     });
-  }, [conduces, fechaInicio, fechaFin, selectedClienteId, selectedEquipoFicha, selectedMina]);
+  }, [conduces, fechaInicio, fechaFin, selectedClienteId, selectedEquipoFicha, selectedMina, selectedMinaId]);
 
   // 1. Reporte por Mina / Proyecto
   const reportByMina = useMemo(() => {
@@ -112,6 +116,32 @@ export const ReportesView: React.FC = () => {
     });
 
     return Array.from(minasMap.values()).sort((a, b) => b.totalMonto - a.totalMonto);
+  }, [filteredConduces]);
+
+  // 1b. Reporte por Mina (origen del material) y Tipo de Agregado
+  const reportByMinaAgregado = useMemo(() => {
+    const map = new Map<
+      string,
+      { minaNombre: string; material: string; totalConduces: number; totalViajes: number; totalM3: number; totalMonto: number }
+    >();
+
+    filteredConduces
+      .filter((c) => c.tipoConduce === 'MATERIAL' && c.minaId)
+      .forEach((c) => {
+        const minaNombre = c.minaNombre || 'Mina sin nombre';
+        const material = c.material || c.servicioDescripcion || 'Material General';
+        const key = `${minaNombre}__${material}`;
+        if (!map.has(key)) {
+          map.set(key, { minaNombre, material, totalConduces: 0, totalViajes: 0, totalM3: 0, totalMonto: 0 });
+        }
+        const group = map.get(key)!;
+        group.totalConduces += 1;
+        group.totalViajes += Number(c.viajes || 0);
+        group.totalM3 += Number((c.unidadMedida || '').toLowerCase() === 'm3' ? c.cantidad : 0);
+        group.totalMonto += Number(c.totalMonto || 0);
+      });
+
+    return Array.from(map.values()).sort((a, b) => a.minaNombre.localeCompare(b.minaNombre) || b.totalMonto - a.totalMonto);
   }, [filteredConduces]);
 
   // 2. Reporte por Equipo / Maquinaria / Camión
@@ -182,6 +212,7 @@ export const ReportesView: React.FC = () => {
 
         return {
           cliente: cli,
+          conduces: cliConduces,
           totalConduces: cliConduces.length,
           totalHoras,
           totalViajes,
@@ -204,6 +235,7 @@ export const ReportesView: React.FC = () => {
     });
 
     return equipos
+      .filter((eq) => selectedEquipoFicha === 'ALL' || eq.ficha === selectedEquipoFicha)
       .map((eq) => {
         const eqDespachos = despachosPeriodo.filter((d) => d.equipoFicha === eq.ficha);
         const galonesTotal = eqDespachos.reduce((sum, d) => sum + Number(d.galones || 0), 0);
@@ -229,7 +261,7 @@ export const ReportesView: React.FC = () => {
       })
       .filter((r) => r.galonesTotal > 0 || r.viajesEquipo > 0)
       .sort((a, b) => b.galonesTotal - a.galonesTotal);
-  }, [equipos, gasoilDespachos, filteredConduces, fechaInicio, fechaFin]);
+  }, [equipos, gasoilDespachos, filteredConduces, fechaInicio, fechaFin, selectedEquipoFicha]);
 
   // Summary Metrics of filtered data
   const summaryTotalHoras = useMemo(() => {
@@ -273,6 +305,19 @@ export const ReportesView: React.FC = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Reporte Minas Proyectos');
       XLSX.writeFile(wb, `Reporte_Minas_${fechaInicio}_al_${fechaFin}.xlsx`);
+    } else if (reportType === 'minaAgregado') {
+      const rows = reportByMinaAgregado.map((r) => ({
+        'Mina': r.minaNombre,
+        'Material / Agregado': r.material,
+        'Total Conduces': r.totalConduces,
+        'Viajes Realizados': r.totalViajes,
+        'Metros Cúbicos (m³)': r.totalM3,
+        'Total Facturado RD$': r.totalMonto,
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Reporte Mina Agregado');
+      XLSX.writeFile(wb, `Reporte_Mina_Agregado_${fechaInicio}_al_${fechaFin}.xlsx`);
     } else if (reportType === 'equipos') {
       const rows = reportByEquipo.map((r) => ({
         'Ficha': r.equipo.ficha,
@@ -291,7 +336,11 @@ export const ReportesView: React.FC = () => {
       XLSX.utils.book_append_sheet(wb, ws, 'Reporte Equipos Maquinaria');
       XLSX.writeFile(wb, `Reporte_Equipos_${fechaInicio}_al_${fechaFin}.xlsx`);
     } else if (reportType === 'combustible') {
-      exportGasoilToExcel(gasoilDespachos);
+      const despachosFiltrados =
+        selectedEquipoFicha === 'ALL'
+          ? gasoilDespachos
+          : gasoilDespachos.filter((d) => d.equipoFicha === selectedEquipoFicha);
+      exportGasoilToExcel(despachosFiltrados);
     } else {
       exportConducesToExcel(filteredConduces);
     }
@@ -302,6 +351,9 @@ export const ReportesView: React.FC = () => {
     const periodoStr = `${formatDate(fechaInicio)} al ${formatDate(fechaFin)}`;
     if (reportType === 'minas') {
       exportReporteMinaPDF(reportByMina, periodoStr, selectedMina);
+    } else if (reportType === 'minaAgregado') {
+      const minaFiltroNombre = selectedMinaId === 'ALL' ? 'ALL' : minas.find((m) => m.id === selectedMinaId)?.nombre || 'ALL';
+      exportReporteMinaAgregadoPDF(reportByMinaAgregado, periodoStr, minaFiltroNombre);
     } else if (reportType === 'equipos') {
       exportReporteEquipoPDF(reportByEquipo, periodoStr, selectedEquipoFicha);
     } else {
@@ -355,11 +407,12 @@ export const ReportesView: React.FC = () => {
               onChange={(e) => setReportType(e.target.value as any)}
               className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-500 focus:outline-none font-bold"
             >
-              <option value="minas">1. Reporte por Mina / Proyecto (Horas, Viajes, Metros)</option>
-              <option value="equipos">2. Reporte por Equipo / Camión (Rendimiento y Producción)</option>
-              <option value="clientes">3. Reporte por Cliente (Facturación y Pendientes)</option>
-              <option value="combustible">4. Control de Consumo de Gasoil Diésel</option>
-              <option value="conduces">5. Listado Detallado de Conduces Emitidos</option>
+              <option value="minas">1. Reporte por Proyecto / Obra (Horas, Viajes, Metros)</option>
+              <option value="minaAgregado">2. Reporte por Mina y Tipo de Agregado</option>
+              <option value="equipos">3. Reporte por Equipo / Camión (Rendimiento y Producción)</option>
+              <option value="clientes">4. Reporte por Cliente (Facturación y Pendientes)</option>
+              <option value="combustible">5. Despacho de Gasoil por Equipo</option>
+              <option value="conduces">6. Listado Detallado de Conduces Emitidos</option>
             </select>
           </div>
 
@@ -387,7 +440,7 @@ export const ReportesView: React.FC = () => {
           <div>
             {reportType === 'minas' && (
               <>
-                <label className="text-slate-400 block mb-1 font-semibold">Mina / Proyecto:</label>
+                <label className="text-slate-400 block mb-1 font-semibold">Proyecto / Obra:</label>
                 <select
                   value={selectedMina}
                   onChange={(e) => setSelectedMina(e.target.value)}
@@ -403,7 +456,7 @@ export const ReportesView: React.FC = () => {
               </>
             )}
 
-            {reportType === 'equipos' && (
+            {(reportType === 'equipos' || reportType === 'combustible') && (
               <>
                 <label className="text-slate-400 block mb-1 font-semibold">Filtrar Equipo:</label>
                 <select
@@ -421,7 +474,25 @@ export const ReportesView: React.FC = () => {
               </>
             )}
 
-            {(reportType === 'clientes' || reportType === 'combustible' || reportType === 'conduces') && (
+            {reportType === 'minaAgregado' && (
+              <>
+                <label className="text-slate-400 block mb-1 font-semibold">Filtrar Mina:</label>
+                <select
+                  value={selectedMinaId}
+                  onChange={(e) => setSelectedMinaId(e.target.value)}
+                  className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="ALL">Todas las Minas</option>
+                  {minas.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nombre}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {(reportType === 'clientes' || reportType === 'conduces') && (
               <>
                 <label className="text-slate-400 block mb-1 font-semibold">Filtrar Cliente:</label>
                 <select
@@ -491,7 +562,7 @@ export const ReportesView: React.FC = () => {
           <div className="p-4 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center text-xs">
             <span className="font-bold text-slate-200 flex items-center gap-2">
               <Navigation className="w-4 h-4 text-amber-400" />
-              Producción Consolidada por Mina / Proyecto
+              Producción Consolidada por Proyecto / Obra
             </span>
             <span className="text-slate-400">
               Período: {formatDate(fechaInicio)} al {formatDate(fechaFin)}
@@ -502,7 +573,7 @@ export const ReportesView: React.FC = () => {
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-800/80 text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-700/80">
                 <tr>
-                  <th className="py-3 px-4">Mina / Proyecto</th>
+                  <th className="py-3 px-4">Proyecto / Obra</th>
                   <th className="py-3 px-4">Clientes</th>
                   <th className="py-3 px-4 text-center">Conduces</th>
                   <th className="py-3 px-4 text-center">Horas de Equipo</th>
@@ -541,6 +612,64 @@ export const ReportesView: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm">
                         {formatCurrency(m.totalMonto)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT 1b: Por Mina y Tipo de Agregado */}
+      {reportType === 'minaAgregado' && (
+        <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center text-xs">
+            <span className="font-bold text-slate-200 flex items-center gap-2">
+              <Navigation className="w-4 h-4 text-amber-400" />
+              Producción por Mina de Origen y Tipo de Agregado
+            </span>
+            <span className="text-slate-400">
+              Período: {formatDate(fechaInicio)} al {formatDate(fechaFin)}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-800/80 text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-700/80">
+                <tr>
+                  <th className="py-3 px-4">Mina</th>
+                  <th className="py-3 px-4">Material / Agregado</th>
+                  <th className="py-3 px-4 text-center">Conduces</th>
+                  <th className="py-3 px-4 text-center">Viajes</th>
+                  <th className="py-3 px-4 text-center">Metros (m³)</th>
+                  <th className="py-3 px-4 text-right">Monto Total RD$</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/70 text-slate-300">
+                {reportByMinaAgregado.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                      No hay conduces de materiales vinculados a una mina para los filtros seleccionados.
+                    </td>
+                  </tr>
+                ) : (
+                  reportByMinaAgregado.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-amber-400">{row.minaNombre}</td>
+                      <td className="py-3.5 px-4 text-slate-200">{row.material}</td>
+                      <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-200">
+                        {row.totalConduces}
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono font-bold text-sky-400">
+                        {row.totalViajes} vjs
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-mono font-bold text-purple-400">
+                        {formatNumber(row.totalM3, 1)} m³
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm">
+                        {formatCurrency(row.totalMonto)}
                       </td>
                     </tr>
                   ))
@@ -652,6 +781,7 @@ export const ReportesView: React.FC = () => {
                   <th className="py-3 px-4 text-center">Pendientes Fac.</th>
                   <th className="py-3 px-4 text-center">Facturados</th>
                   <th className="py-3 px-4 text-right">Facturación Estimada RD$</th>
+                  <th className="py-3 px-4 text-center">Proforma</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/70 text-slate-300">
@@ -687,6 +817,23 @@ export const ReportesView: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm">
                       {formatCurrency(r.totalMonto)}
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
+                      <button
+                        onClick={() =>
+                          exportFacturaProformaPDF(
+                            r.cliente,
+                            r.conduces,
+                            `${formatDate(fechaInicio)} al ${formatDate(fechaFin)}`
+                          )
+                        }
+                        disabled={r.conduces.length === 0}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-bold text-[11px] border border-slate-700 inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Generar Factura Proforma en PDF"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Proforma</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -763,7 +910,7 @@ export const ReportesView: React.FC = () => {
                   <th className="py-3 px-4">No. Conduce</th>
                   <th className="py-3 px-4">Fecha</th>
                   <th className="py-3 px-4">Cliente</th>
-                  <th className="py-3 px-4">Mina / Proyecto</th>
+                  <th className="py-3 px-4">Proyecto / Obra</th>
                   <th className="py-3 px-4">Servicio</th>
                   <th className="py-3 px-4 text-center">Cantidad</th>
                   <th className="py-3 px-4 text-right">Total RD$</th>

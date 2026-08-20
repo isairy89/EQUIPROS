@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import {
   Cliente,
+  Mina,
   Servicio,
   PrecioCliente,
   Empleado,
@@ -15,6 +16,7 @@ import {
 import { ApiService, getAuthToken } from '../services/api.ts';
 import {
   INITIAL_CLIENTES,
+  INITIAL_MINAS,
   INITIAL_SERVICIOS,
   INITIAL_PRECIOS_CLIENTE,
   INITIAL_EMPLEADOS,
@@ -31,6 +33,7 @@ export type ViewType =
   | 'conduces'
   | 'produccion'
   | 'clientes'
+  | 'minas'
   | 'servicios'
   | 'empleados'
   | 'equipos'
@@ -57,6 +60,7 @@ interface AppContextType {
 
   // Data Collections
   clientes: Cliente[];
+  minas: Mina[];
   servicios: Servicio[];
   preciosCliente: PrecioCliente[];
   empleados: Empleado[];
@@ -70,6 +74,9 @@ interface AppContextType {
   // Data Mutation Methods
   saveCliente: (cliente: Partial<Cliente>) => Promise<Cliente>;
   deleteCliente: (id: string) => Promise<void>;
+
+  saveMina: (mina: Partial<Mina>) => Promise<Mina>;
+  deleteMina: (id: string) => Promise<void>;
 
   saveServicio: (servicio: Partial<Servicio>) => Promise<Servicio>;
   deleteServicio: (id: string) => Promise<void>;
@@ -85,7 +92,7 @@ interface AppContextType {
   deleteEquipo: (id: string) => Promise<void>;
 
   saveConduce: (conduce: Partial<Conduce>) => Promise<Conduce>;
-  updateEstadoFacturacion: (id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado') => Promise<void>;
+  updateEstadoFacturacion: (id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma') => Promise<void>;
   deleteConduce: (id: string) => Promise<void>;
 
   saveGasoilConfig: (config: Partial<ConfiguracionGasoil>) => Promise<void>;
@@ -122,6 +129,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // State entities
   const [clientes, setClientes] = useState<Cliente[]>(INITIAL_CLIENTES);
+  const [minas, setMinas] = useState<Mina[]>(INITIAL_MINAS);
   const [servicios, setServicios] = useState<Servicio[]>(INITIAL_SERVICIOS);
   const [preciosCliente, setPreciosCliente] = useState<PrecioCliente[]>(INITIAL_PRECIOS_CLIENTE);
   const [empleados, setEmpleados] = useState<Empleado[]>(INITIAL_EMPLEADOS);
@@ -146,6 +154,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const applyFullState = (state: FullInitialState) => {
     if (state.clientes) setClientes(state.clientes);
+    if (state.minas) setMinas(state.minas);
     if (state.servicios) setServicios(state.servicios);
     if (state.preciosCliente) setPreciosCliente(state.preciosCliente);
     if (state.empleados) setEmpleados(state.empleados);
@@ -265,6 +274,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       showToast('Cliente eliminado', 'info');
     } catch (err: any) {
       showToast('Error al eliminar cliente: ' + err.message, 'error');
+      throw err;
+    }
+  };
+
+  const saveMina = async (mina: Partial<Mina>): Promise<Mina> => {
+    try {
+      const saved = await ApiService.saveMina(mina);
+      setMinas((prev) => {
+        const idx = prev.findIndex((m) => m.id === saved.id);
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = saved;
+          return next;
+        }
+        return [saved, ...prev];
+      });
+      showToast('Mina guardada correctamente', 'success');
+      return saved;
+    } catch (err: any) {
+      showToast('Error al guardar mina: ' + err.message, 'error');
+      throw err;
+    }
+  };
+
+  const deleteMina = async (id: string): Promise<void> => {
+    try {
+      await ApiService.deleteMina(id);
+      setMinas((prev) => prev.filter((m) => m.id !== id));
+      showToast('Mina eliminada', 'info');
+    } catch (err: any) {
+      showToast('Error al eliminar mina: ' + err.message, 'error');
       throw err;
     }
   };
@@ -414,7 +454,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const updateEstadoFacturacion = async (id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado'): Promise<void> => {
+  const updateEstadoFacturacion = async (id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma'): Promise<void> => {
     try {
       await ApiService.updateEstadoFacturacion(id, estado);
       setConduces((prev) =>
@@ -535,6 +575,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (err: any) {
       // Fallback in memory
       setClientes(INITIAL_CLIENTES);
+      setMinas(INITIAL_MINAS);
       setServicios(INITIAL_SERVICIOS);
       setPreciosCliente(INITIAL_PRECIOS_CLIENTE);
       setEmpleados(INITIAL_EMPLEADOS);
@@ -553,6 +594,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const exportJSONBackup = () => {
     const data: FullInitialState = {
       clientes,
+      minas,
       servicios,
       preciosCliente,
       empleados,
@@ -619,6 +661,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         showToast,
         removeToast,
         clientes,
+        minas,
         servicios,
         preciosCliente,
         empleados,
@@ -630,6 +673,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         gasoilConteos,
         saveCliente,
         deleteCliente,
+        saveMina,
+        deleteMina,
         saveServicio,
         deleteServicio,
         savePrecioCliente,

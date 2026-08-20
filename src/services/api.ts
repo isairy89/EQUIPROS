@@ -1,5 +1,6 @@
 import {
   Cliente,
+  Mina,
   Servicio,
   PrecioCliente,
   Empleado,
@@ -125,6 +126,22 @@ export const ApiService = {
     });
   },
 
+  // Minas
+  async getMinas(): Promise<Mina[]> {
+    return request<Mina[]>('/api/minas');
+  },
+  async saveMina(mina: Partial<Mina>): Promise<Mina> {
+    return request<Mina>('/api/minas', {
+      method: 'POST',
+      body: JSON.stringify(mina),
+    });
+  },
+  async deleteMina(id: string): Promise<{ success: boolean; id: string }> {
+    return request<{ success: boolean; id: string }>(`/api/minas/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Servicios
   async getServicios(): Promise<Servicio[]> {
     return request<Servicio[]>('/api/servicios');
@@ -199,7 +216,7 @@ export const ApiService = {
       body: JSON.stringify(conduce),
     });
   },
-  async updateEstadoFacturacion(id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado'): Promise<{ success: boolean }> {
+  async updateEstadoFacturacion(id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma'): Promise<{ success: boolean }> {
     return request<{ success: boolean }>(`/api/conduces/${id}/facturacion`, {
       method: 'PATCH',
       body: JSON.stringify({ estado }),

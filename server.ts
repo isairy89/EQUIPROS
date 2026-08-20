@@ -151,6 +151,34 @@ async function startServer() {
     }
   });
 
+  // --- Minas ---
+  app.get('/api/minas', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await DatabaseRepository.getMinas();
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.post('/api/minas', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const saved = await DatabaseRepository.saveMina(req.body);
+      res.json(saved);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  app.delete('/api/minas/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await DatabaseRepository.deleteMina(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // --- Servicios ---
   app.get('/api/servicios', async (req: Request, res: Response, next: NextFunction) => {
     try {

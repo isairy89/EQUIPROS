@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Conduce, Empleado, DespachoGasoil, Equipo } from '../types/index.ts';
+import { Conduce, Cliente, Empleado, DespachoGasoil, Equipo } from '../types/index.ts';
 import { formatCurrency, formatDate, formatNumber } from './formatters.ts';
 
 // 1. Export single Conduce (Receipt / Proof of Delivery)
@@ -339,6 +339,79 @@ export function exportReporteMinaPDF(
   doc.save(`Reporte_Minas_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
+// 3b. Export Reporte por Mina de Origen y Tipo de Agregado PDF
+export function exportReporteMinaAgregadoPDF(
+  reportData: Array<{ minaNombre: string; material: string; totalConduces: number; totalViajes: number; totalM3: number; totalMonto: number }>,
+  dateRange: string,
+  filterMina: string = 'ALL'
+) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, 210, 32, 'F');
+
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EQUIPROCI - REPORTE POR MINA Y TIPO DE AGREGADO', 14, 14);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(226, 232, 240);
+  doc.text(`Período: ${dateRange} | Mina: ${filterMina === 'ALL' ? 'Todas' : filterMina}`, 14, 22);
+
+  const tableBody = reportData.map((r) => [
+    r.minaNombre,
+    r.material,
+    r.totalConduces.toString(),
+    `${r.totalViajes} vjs`,
+    `${formatNumber(r.totalM3, 1)} m³`,
+    formatCurrency(r.totalMonto),
+  ]);
+
+  autoTable(doc, {
+    startY: 38,
+    theme: 'grid',
+    head: [['Mina', 'Material / Agregado', 'Conduces', 'Viajes', 'Metros (m³)', 'Total RD$']],
+    body: tableBody.length > 0 ? tableBody : [['--', 'Sin registros para los filtros seleccionados', '--', '--', '--', '--']],
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: [30, 41, 59],
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      2: { halign: 'center' },
+      3: { halign: 'center' },
+      4: { halign: 'center' },
+      5: { halign: 'right', fontStyle: 'bold' },
+    },
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY || 140;
+  const grandTotal = reportData.reduce((sum, item) => sum + item.totalMonto, 0);
+
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(120, finalY + 8, 76, 18, 2, 2, 'F');
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(8.5);
+  doc.text('GRAN TOTAL FACTURADO:', 124, finalY + 14);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrency(grandTotal), 124, finalY + 21);
+
+  doc.save(`Reporte_Mina_Agregado_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 // 4. Export Reporte por Equipo / Maquinaria PDF
 export function exportReporteEquipoPDF(
   reportData: Array<{
@@ -563,4 +636,282 @@ export function exportDriverPayrollPDF(
   doc.text('Firma Empleado / Recibí Conforme', 128, sigY + 5);
 
   doc.save(`Liquidacion_${empleado.nombre.replace(/\s+/g, '_')}.pdf`);
+}
+
+// Control de Equipos: liquidación de producción por chofer/operador con formato de caja encerrada.
+export function exportControlEquiposPDF(
+  empleado: Empleado,
+  conducesEmpleado: Conduce[],
+  startDate: string,
+  endDate: string,
+  tssMonto: number = 438
+) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  // Encabezado
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EQUIPOS Y PROYECTOS CIVILES, S.R.L.', 14, 13);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(226, 232, 240);
+  doc.text('CONTROL DE EQUIPOS', 14, 20);
+  doc.setFontSize(8.5);
+  doc.text(`Período: ${formatDate(startDate)} al ${formatDate(endDate)}`, 14, 26);
+
+  // Determina el equipo/placa más usado por el empleado en el período (equipo asignado de referencia)
+  const equipoCount = new Map<string, number>();
+  conducesEmpleado.forEach((c) => {
+    if (c.equipoFicha) equipoCount.set(c.equipoFicha, (equipoCount.get(c.equipoFicha) || 0) + 1);
+  });
+  let equipoAsignado = 'N/D';
+  let maxCount = 0;
+  equipoCount.forEach((cnt, ficha) => {
+    if (cnt > maxCount) {
+      maxCount = cnt;
+      equipoAsignado = ficha;
+    }
+  });
+  const placaAsignada = conducesEmpleado.find((c) => c.equipoFicha === equipoAsignado)?.placa || 'N/D';
+
+  // Caja de datos: Chofer, Vehículo/Equipo, Placa, Rango de Fechas
+  doc.setDrawColor(203, 213, 225);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, 36, 182, 26, 2, 2, 'FD');
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('CHOFER / OPERADOR:', 18, 43);
+  doc.text('VEHÍCULO / EQUIPO ASIGNADO:', 106, 43);
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(empleado.nombre, 18, 49);
+  doc.text(equipoAsignado, 106, 49);
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('PLACA:', 18, 56);
+  doc.text('RANGO DE FECHAS:', 106, 56);
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(placaAsignada, 18, 59.5);
+  doc.text(`${formatDate(startDate)} - ${formatDate(endDate)}`, 106, 59.5);
+
+  // Filas de la tabla principal, con el pago por línea calculado según lo que aplique (hora, viaje o m3)
+  let subtotal = 0;
+  const tripRows = conducesEmpleado.map((c) => {
+    const ht = Number(c.horasTrabajadas || (c.unidadMedida === 'HORA' ? c.cantidad : 0));
+    const viajes = Number(c.viajes || 0);
+    const hm = c.horometroFinal ?? c.horometroInicial ?? null;
+
+    let rate = 0;
+    let total = 0;
+    if (ht > 0) {
+      rate = empleado.pagoPorHora || 0;
+      total = ht * rate;
+    } else if (viajes > 0) {
+      rate = empleado.pagoPorViaje || 0;
+      total = viajes * rate;
+    } else {
+      rate = empleado.pagoPorMetro || 0;
+      total = Number(c.cantidad || 0) * rate;
+    }
+    subtotal += total;
+
+    return [
+      formatDate(c.fecha),
+      c.numeroConduce,
+      c.clienteNombre,
+      c.servicioDescripcion || '-',
+      ht > 0 ? formatNumber(ht, 1) : '-',
+      viajes > 0 ? String(viajes) : '-',
+      hm !== null ? String(hm) : '-',
+      formatCurrency(rate),
+      formatCurrency(total),
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 68,
+    theme: 'grid',
+    head: [['FECHA', 'CONDUCE', 'CLIENTE', 'TRABAJO', 'HT', 'VIAJES', 'HM', 'PRECIO/H', 'TOTAL']],
+    body: tripRows.length > 0 ? tripRows : [['--', '--', 'Sin conduces registrados en este período', '--', '--', '--', '--', '--', '--']],
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 7.5,
+      halign: 'center',
+    },
+    bodyStyles: {
+      fontSize: 7.5,
+      textColor: [30, 41, 59],
+    },
+    columnStyles: {
+      2: { cellWidth: 30 },
+      3: { cellWidth: 32 },
+      4: { halign: 'center' },
+      5: { halign: 'center' },
+      6: { halign: 'center' },
+      7: { halign: 'right' },
+      8: { halign: 'right', fontStyle: 'bold' },
+    },
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY || 100;
+  const totalNeto = subtotal - tssMonto;
+
+  // Bloque de resumen encapsulado: Subtotal, Descuento TSS, Total Neto destacado
+  doc.setDrawColor(203, 213, 225);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(114, finalY + 6, 82, 32, 2, 2, 'FD');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text('Subtotal:', 118, finalY + 13);
+  doc.text(formatCurrency(subtotal), 192, finalY + 13, { align: 'right' });
+
+  doc.setTextColor(190, 18, 60);
+  doc.text('Descuento TSS:', 118, finalY + 19.5);
+  doc.text(`- ${formatCurrency(tssMonto)}`, 192, finalY + 19.5, { align: 'right' });
+
+  doc.setDrawColor(148, 163, 184);
+  doc.line(118, finalY + 22.5, 192, finalY + 22.5);
+
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL NETO A PAGAR:', 118, finalY + 30);
+  doc.text(formatCurrency(totalNeto), 192, finalY + 30, { align: 'right' });
+
+  // Firma
+  const sigY = finalY + 48;
+  doc.setDrawColor(100, 116, 139);
+  doc.line(18, sigY, 90, sigY);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('RECIBIDO POR:', 18, sigY + 5);
+
+  doc.save(`ControlEquipos_${empleado.nombre.replace(/\s+/g, '_')}_${startDate}_${endDate}.pdf`);
+}
+
+// Factura Proforma: listado detallado de conduces de un cliente con monto total, sin valor fiscal.
+export function exportFacturaProformaPDF(cliente: Cliente, conducesCliente: Conduce[], dateRange: string) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  // Encabezado
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, 210, 34, 'F');
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EQUIPOS Y PROYECTOS CIVILES, S.R.L.', 14, 14);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(226, 232, 240);
+  doc.text('ALQUILER DE MAQUINARIA PESADA • TRANSPORTE DE MATERIALES • MOVIMIENTO DE TIERRA', 14, 20);
+  doc.text(`Período: ${dateRange}`, 14, 25.5);
+
+  doc.setFillColor(245, 158, 11);
+  doc.roundedRect(146, 8, 50, 18, 2, 2, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('FACTURA PROFORMA', 149, 15);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Emitida: ${formatDate(new Date().toISOString().split('T')[0])}`, 149, 21.5);
+
+  // Datos del cliente
+  doc.setDrawColor(203, 213, 225);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, 40, 182, 24, 2, 2, 'FD');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('CLIENTE:', 18, 47);
+  doc.text('RNC:', 106, 47);
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(cliente.nombre, 18, 52.5);
+  doc.text(cliente.rnc || 'N/D', 106, 52.5);
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('DIRECCIÓN:', 18, 59);
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(cliente.direccion || 'N/D', 18, 62, { maxWidth: 170 });
+
+  // Listado detallado de conduces
+  const rows = conducesCliente.map((c) => [
+    c.numeroConduce,
+    formatDate(c.fecha),
+    c.servicioDescripcion || c.material || '-',
+    c.obra || '-',
+    `${formatNumber(c.cantidad, 2)} ${c.unidadMedida}`,
+    formatCurrency(c.precioUnitario),
+    formatCurrency(c.totalMonto),
+  ]);
+
+  autoTable(doc, {
+    startY: 70,
+    theme: 'grid',
+    head: [['No. Conduce', 'Fecha', 'Servicio / Material', 'Proyecto / Obra', 'Cantidad', 'Precio Unit.', 'Total RD$']],
+    body: rows.length > 0 ? rows : [['--', '--', 'Sin conduces asociados en este período', '--', '--', '--', '--']],
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+    },
+    bodyStyles: {
+      fontSize: 7.5,
+      textColor: [30, 41, 59],
+    },
+    columnStyles: {
+      6: { halign: 'right', fontStyle: 'bold' },
+      5: { halign: 'right' },
+      4: { halign: 'center' },
+    },
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY || 110;
+  const total = conducesCliente.reduce((sum, c) => sum + Number(c.totalMonto || 0), 0);
+
+  doc.setFillColor(15, 23, 42);
+  doc.roundedRect(126, finalY + 6, 70, 18, 2, 2, 'F');
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(8.5);
+  doc.text('TOTAL PROFORMA:', 130, finalY + 12);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrency(total), 130, finalY + 19);
+
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(148, 163, 184);
+  doc.text(
+    'Este documento es una PROFORMA de referencia y no constituye una factura fiscal válida ni un comprobante de pago.',
+    14,
+    finalY + 34
+  );
+
+  doc.save(`Proforma_${cliente.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
 }

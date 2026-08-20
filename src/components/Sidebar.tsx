@@ -14,6 +14,7 @@ import {
   Flame,
   Clock,
   ClipboardList,
+  Mountain,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -73,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenNewConduceEquipo, onOpen
 
   const configurarEmpresa: NavItem[] = [
     { id: 'clientes', label: 'Clientes', icon: <Users className="w-5 h-5" /> },
+    { id: 'minas', label: 'Minas', icon: <Mountain className="w-5 h-5" /> },
     { id: 'servicios', label: 'Servicios y Precios', icon: <Layers className="w-5 h-5" /> },
     { id: 'empleados', label: 'Empleados y Personal', icon: <UserCheck className="w-5 h-5" /> },
     { id: 'equipos', label: 'Equipos y Vehículos', icon: <Truck className="w-5 h-5" /> },

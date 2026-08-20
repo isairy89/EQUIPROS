@@ -11,6 +11,15 @@ export interface Cliente {
   fechaCreacion?: string;
 }
 
+export interface Mina {
+  id: string;
+  nombre: string;
+  ubicacion?: string;
+  contacto?: string;
+  telefono?: string;
+  estado?: 'Activo' | 'Inactivo';
+}
+
 export interface Servicio {
   id: string;
   codigo: string;
@@ -76,8 +85,10 @@ export interface Conduce {
   hora?: string;  // HH:mm
   clienteId: string;
   clienteNombre: string;
-  obra: string; // Proyecto / Mina / Ubicación
+  obra: string; // Proyecto / Ubicación destino
   proyectoMina?: string;
+  minaId?: string; // Origen del material (solo Conduce de Materiales)
+  minaNombre?: string;
   servicioId: string;
   servicioDescripcion: string;
   cantidad: number; // Horas, Viajes, o Metros según servicio
@@ -106,7 +117,7 @@ export interface Conduce {
   // Control administrativo
   rnc?: string;
   sellado: boolean;
-  estadoFacturacion: 'Pendiente' | 'Facturado' | 'Anulado';
+  estadoFacturacion: 'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma';
   numeroFactura?: string;
   fechaFacturacion?: string;
   comentarios?: string;
@@ -162,6 +173,7 @@ export interface ConteoGasoil {
 
 export interface FullInitialState {
   clientes: Cliente[];
+  minas: Mina[];
   servicios: Servicio[];
   preciosCliente: PrecioCliente[];
   empleados: Empleado[];

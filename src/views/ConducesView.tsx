@@ -52,6 +52,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
   const {
     conduces,
     clientes,
+    minas,
     servicios,
     empleados,
     equipos,
@@ -82,11 +83,12 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
   const [formHora, setFormHora] = useState(getCurrentTimeString());
   const [formClienteId, setFormClienteId] = useState('');
   const [formObra, setFormObra] = useState('');
+  const [formMinaId, setFormMinaId] = useState('');
   const [formServicioId, setFormServicioId] = useState('');
   const [formPrecioUnitario, setFormPrecioUnitario] = useState<string>('');
   const [formChoferId, setFormChoferId] = useState('');
   const [formEquipoId, setFormEquipoId] = useState('');
-  const [formEstadoFacturacion, setFormEstadoFacturacion] = useState<'Pendiente' | 'Facturado' | 'Anulado'>('Pendiente');
+  const [formEstadoFacturacion, setFormEstadoFacturacion] = useState<'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma'>('Pendiente');
   const [formNumeroFactura, setFormNumeroFactura] = useState('');
   const [formSellado, setFormSellado] = useState(true);
   const [formComentarios, setFormComentarios] = useState('');
@@ -148,6 +150,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
     setFormHora(getCurrentTimeString());
     setFormClienteId('');
     setFormObra('');
+    setFormMinaId('');
     setFormServicioId('');
     setFormPrecioUnitario('');
     setFormChoferId('');
@@ -174,6 +177,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
     setFormHora(conduce.hora || getCurrentTimeString());
     setFormClienteId(conduce.clienteId);
     setFormObra(conduce.obra || conduce.proyectoMina || '');
+    setFormMinaId(conduce.minaId || '');
     setFormServicioId(conduce.servicioId || '');
     setFormPrecioUnitario(String(conduce.precioUnitario));
     setFormChoferId(conduce.choferId || '');
@@ -230,6 +234,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
     const servicioObj = servicios.find((s) => s.id === formServicioId);
     const choferObj = empleados.find((e) => e.id === formChoferId);
     const equipoObj = equipos.find((eq) => eq.id === formEquipoId);
+    const minaObj = minas.find((m) => m.id === formMinaId);
 
     let cantidad = 0;
     let unidadMedida = servicioObj?.unidadMedida || '';
@@ -265,6 +270,10 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
       }
       if (!formChoferId) {
         alert('Seleccione el chofer del camión.');
+        return;
+      }
+      if (!formMinaId) {
+        alert('Seleccione la mina de origen del material.');
         return;
       }
       if (materialUnidad === 'M3') {
@@ -303,6 +312,8 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
       clienteNombre: clienteObj?.nombre || 'Cliente General',
       rnc: clienteObj?.rnc || '',
       obra: formObra.trim(),
+      minaId: formTipoConduce === 'MATERIAL' ? formMinaId || undefined : undefined,
+      minaNombre: formTipoConduce === 'MATERIAL' ? minaObj?.nombre || undefined : undefined,
       servicioId: formServicioId,
       servicioDescripcion: servicioObj?.descripcion || 'Servicio General',
       cantidad,
@@ -490,6 +501,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
             >
               <option value="ALL">Todos los Estados</option>
               <option value="Pendiente">Pendiente por Facturar</option>
+              <option value="Proforma">Proforma</option>
               <option value="Facturado">Facturado</option>
               <option value="Anulado">Anulado</option>
             </select>
@@ -600,6 +612,9 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
                       {conduce.viajes && (
                         <div className="text-[10px] text-slate-400">{conduce.viajes} viaje(s)</div>
                       )}
+                      {conduce.minaNombre && (
+                        <div className="text-[10px] text-slate-500">Mina: {conduce.minaNombre}</div>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-100 whitespace-nowrap">
                       {formatNumber(conduce.cantidad, 2)} <span className="text-[10px] text-amber-400">{conduce.unidadMedida}</span>
@@ -620,17 +635,20 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
                       <select
                         value={conduce.estadoFacturacion}
                         onChange={(e) =>
-                          updateEstadoFacturacion(conduce.id, e.target.value as 'Pendiente' | 'Facturado' | 'Anulado')
+                          updateEstadoFacturacion(conduce.id, e.target.value as 'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma')
                         }
                         className={`text-[10px] font-bold px-2 py-1 rounded-lg border focus:outline-none cursor-pointer ${
                           conduce.estadoFacturacion === 'Facturado'
                             ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
                             : conduce.estadoFacturacion === 'Anulado'
                             ? 'bg-rose-950/80 text-rose-300 border-rose-800'
+                            : conduce.estadoFacturacion === 'Proforma'
+                            ? 'bg-sky-950/80 text-sky-300 border-sky-800'
                             : 'bg-amber-950/80 text-amber-300 border-amber-800'
                         }`}
                       >
                         <option value="Pendiente">Pendiente</option>
+                        <option value="Proforma">Proforma</option>
                         <option value="Facturado">Facturado</option>
                         <option value="Anulado">Anulado</option>
                       </select>
@@ -767,14 +785,15 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
                   className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100 focus:border-amber-500 focus:outline-none font-bold"
                 >
                   <option value="Pendiente">Pendiente por Facturar</option>
+                  <option value="Proforma">Proforma</option>
                   <option value="Facturado">Facturado</option>
                   <option value="Anulado">Anulado</option>
                 </select>
               </div>
             </div>
 
-            {/* Cliente & Proyecto */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Cliente, Proyecto & Mina */}
+            <div className={`grid grid-cols-1 gap-3 ${formTipoConduce === 'MATERIAL' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1">Cliente *</label>
                 <select
@@ -802,6 +821,29 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
                   className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100 focus:border-amber-500 focus:outline-none"
                 />
               </div>
+              {formTipoConduce === 'MATERIAL' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Mina de Origen *</label>
+                  <select
+                    required
+                    value={formMinaId}
+                    onChange={(e) => setFormMinaId(e.target.value)}
+                    className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100 focus:border-amber-500 focus:outline-none font-medium"
+                  >
+                    <option value="">-- Seleccionar Mina --</option>
+                    {minas.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {minas.length === 0 && (
+                    <p className="text-[10px] text-rose-400 mt-1">
+                      No hay minas registradas. Agréguelas primero en Configurar Empresa → Minas.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Servicio */}

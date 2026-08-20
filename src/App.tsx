@@ -10,6 +10,7 @@ import { Conduce, TipoConduce } from './types/index.ts';
 import { DashboardView } from './views/DashboardView.tsx';
 import { ConducesView } from './views/ConducesView.tsx';
 import { ClientesView } from './views/ClientesView.tsx';
+import { MinasView } from './views/MinasView.tsx';
 import { ServiciosView } from './views/ServiciosView.tsx';
 import { EmpleadosView } from './views/EmpleadosView.tsx';
 import { EquiposView } from './views/EquiposView.tsx';
@@ -142,6 +143,8 @@ const MainLayout: React.FC = () => {
         return <ProduccionView />;
       case 'clientes':
         return <ClientesView />;
+      case 'minas':
+        return <MinasView />;
       case 'servicios':
         return <ServiciosView />;
       case 'empleados':

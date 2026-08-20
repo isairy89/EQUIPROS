@@ -12,6 +12,15 @@ export const clientes = pgTable('clientes', {
   fechaCreacion: timestamp('fecha_creacion').defaultNow(),
 });
 
+export const minas = pgTable('minas', {
+  id: text('id').primaryKey(),
+  nombre: text('nombre').notNull(),
+  ubicacion: text('ubicacion'),
+  contacto: text('contacto'),
+  telefono: text('telefono'),
+  estado: text('estado').default('Activo').notNull(),
+});
+
 export const servicios = pgTable('servicios', {
   id: text('id').primaryKey(),
   codigo: text('codigo').notNull(),
@@ -81,6 +90,8 @@ export const conduces = pgTable('conduces', {
   equipoFicha: text('equipo_ficha'),
   bombaId: text('bomba_id'),
   bombaFicha: text('bomba_ficha'),
+  minaId: text('mina_id'),
+  minaNombre: text('mina_nombre'),
   placa: text('placa'),
   turnoHorario: text('turno_horario'),
   horaInicio: text('hora_inicio'),

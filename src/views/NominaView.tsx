@@ -19,11 +19,16 @@ import {
   formatDate,
   getTodayString,
 } from '../utils/formatters.ts';
-import { exportDriverPayrollPDF } from '../utils/pdfExport.ts';
+import { exportDriverPayrollPDF, exportControlEquiposPDF } from '../utils/pdfExport.ts';
+import { Modal } from '../components/Modal.tsx';
 import * as XLSX from 'xlsx';
 
 export const NominaView: React.FC = () => {
   const { empleados, conduces, gasoilDespachos } = useApp();
+
+  // Modal "Control de Equipos": confirma el monto de TSS antes de generar el PDF
+  const [controlEquiposTarget, setControlEquiposTarget] = useState<{ empleado: Empleado; conduces: Conduce[] } | null>(null);
+  const [tssMonto, setTssMonto] = useState<number>(438);
 
   // Date filters for payroll period
   const [fechaInicio, setFechaInicio] = useState(
@@ -237,6 +242,7 @@ export const NominaView: React.FC = () => {
                 <th className="py-3 px-4 text-right">Salario Base</th>
                 <th className="py-3 px-4 text-right">Total a Pagar</th>
                 <th className="py-3 px-4 text-center">Imprimir Volante</th>
+                <th className="py-3 px-4 text-center">Control de Equipos</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70 text-slate-300">
@@ -292,12 +298,78 @@ export const NominaView: React.FC = () => {
                       <span>Volante</span>
                     </button>
                   </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <button
+                      onClick={() => {
+                        setTssMonto(438);
+                        setControlEquiposTarget({ empleado: item.empleado, conduces: item.conduces });
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 font-bold text-[11px] border border-slate-700 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>Control Equipos</span>
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Modal: confirmar TSS antes de generar el PDF de Control de Equipos */}
+      <Modal
+        isOpen={!!controlEquiposTarget}
+        onClose={() => setControlEquiposTarget(null)}
+        title="Generar Control de Equipos"
+        subtitle={controlEquiposTarget ? `Empleado: ${controlEquiposTarget.empleado.nombre}` : ''}
+        maxWidth="sm"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">
+              Descuento de TSS (RD$)
+            </label>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={tssMonto}
+              onChange={(e) => setTssMonto(Number(e.target.value))}
+              className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100 focus:border-amber-500 focus:outline-none font-bold text-right"
+            />
+            <p className="text-[10px] text-slate-500 mt-1">
+              Se resta del subtotal de producción del período para calcular el Total Neto a Pagar.
+            </p>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => setControlEquiposTarget(null)}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!controlEquiposTarget) return;
+                exportControlEquiposPDF(
+                  controlEquiposTarget.empleado,
+                  controlEquiposTarget.conduces,
+                  fechaInicio,
+                  fechaFin,
+                  tssMonto
+                );
+                setControlEquiposTarget(null);
+              }}
+              className="px-5 py-2 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 text-white rounded-xl text-xs font-black shadow-lg shadow-sky-600/20 cursor-pointer"
+            >
+              Generar PDF
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

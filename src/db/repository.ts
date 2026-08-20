@@ -3,6 +3,7 @@ import { db } from './client.ts';
 import * as schema from './schema.ts';
 import {
   Cliente,
+  Mina,
   Servicio,
   PrecioCliente,
   Empleado,
@@ -23,6 +24,7 @@ export const DatabaseRepository = {
   async getFullInitialState(): Promise<FullInitialState> {
     const [
       clientes,
+      minas,
       servicios,
       preciosCliente,
       empleados,
@@ -34,6 +36,7 @@ export const DatabaseRepository = {
       gasoilConteos,
     ] = await Promise.all([
       db.select().from(schema.clientes),
+      db.select().from(schema.minas),
       db.select().from(schema.servicios),
       db.select().from(schema.preciosCliente),
       db.select().from(schema.empleados),
@@ -47,6 +50,7 @@ export const DatabaseRepository = {
 
     return {
       clientes: clientes as unknown as Cliente[],
+      minas: minas as unknown as Mina[],
       servicios: servicios as unknown as Servicio[],
       preciosCliente: preciosCliente as unknown as PrecioCliente[],
       empleados: empleados as unknown as Empleado[],
@@ -68,6 +72,9 @@ export const DatabaseRepository = {
     if (!data) return this.getFullInitialState();
     if (Array.isArray(data.clientes)) {
       for (const c of data.clientes) await this.saveCliente(c);
+    }
+    if (Array.isArray(data.minas)) {
+      for (const m of data.minas) await this.saveMina(m);
     }
     if (Array.isArray(data.servicios)) {
       for (const s of data.servicios) await this.saveServicio(s);
@@ -138,6 +145,45 @@ export const DatabaseRepository = {
   async deleteCliente(id: string): Promise<boolean> {
     await db.delete(schema.preciosCliente).where(eq(schema.preciosCliente.clienteId, id));
     await db.delete(schema.clientes).where(eq(schema.clientes.id, id));
+    return true;
+  },
+
+  // --- Minas ---
+  async getMinas(): Promise<Mina[]> {
+    return (await db.select().from(schema.minas)) as unknown as Mina[];
+  },
+
+  async saveMina(mina: Partial<Mina>): Promise<Mina> {
+    if (mina.id) {
+      const [updated] = await db
+        .update(schema.minas)
+        .set({
+          nombre: mina.nombre,
+          ubicacion: mina.ubicacion,
+          contacto: mina.contacto,
+          telefono: mina.telefono,
+          estado: mina.estado,
+        })
+        .where(eq(schema.minas.id, mina.id))
+        .returning();
+      if (updated) return updated as unknown as Mina;
+    }
+    const [created] = await db
+      .insert(schema.minas)
+      .values({
+        id: mina.id || genId('mina'),
+        nombre: mina.nombre || 'Nueva Mina',
+        ubicacion: mina.ubicacion || '',
+        contacto: mina.contacto || '',
+        telefono: mina.telefono || '',
+        estado: mina.estado || 'Activo',
+      })
+      .returning();
+    return created as unknown as Mina;
+  },
+
+  async deleteMina(id: string): Promise<boolean> {
+    await db.delete(schema.minas).where(eq(schema.minas.id, id));
     return true;
   },
 
@@ -331,7 +377,17 @@ export const DatabaseRepository = {
       .orderBy(sql`${schema.conduces.creadoEn} DESC NULLS LAST`)) as unknown as Conduce[];
   },
 
-  async saveConduce(conduce: Partial<Conduce>): Promise<Conduce> {
+  async saveConduce(input: Partial<Conduce>): Promise<Conduce> {
+    // Si es una actualización, se parte del registro existente para que los campos no
+    // enviados conserven su valor actual en vez de perderse (evita corromper datos).
+    let conduce: Partial<Conduce> = input;
+    if (input.id) {
+      const [existing] = await db.select().from(schema.conduces).where(eq(schema.conduces.id, input.id));
+      if (existing) {
+        conduce = { ...(existing as unknown as Conduce), ...input };
+      }
+    }
+
     // Snapshot de datos del equipo (placa, capacidad) al momento del registro, evitando pedirlos dos veces.
     let placa = conduce.placa;
     let capacidadCamion = conduce.capacidadCamion;
@@ -368,6 +424,8 @@ export const DatabaseRepository = {
       equipoFicha: conduce.equipoFicha || null,
       bombaId: conduce.bombaId || null,
       bombaFicha: conduce.bombaFicha || null,
+      minaId: conduce.minaId || null,
+      minaNombre: conduce.minaNombre || null,
       placa: placa || null,
       turnoHorario: conduce.turnoHorario || null,
       horaInicio: conduce.horaInicio || null,
@@ -402,7 +460,7 @@ export const DatabaseRepository = {
     return created as unknown as Conduce;
   },
 
-  async updateEstadoFacturacion(id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado'): Promise<boolean> {
+  async updateEstadoFacturacion(id: string, estado: 'Pendiente' | 'Facturado' | 'Anulado' | 'Proforma'): Promise<boolean> {
     const [current] = await db.select().from(schema.conduces).where(eq(schema.conduces.id, id));
     if (!current) return false;
     await db
@@ -603,6 +661,6 @@ export const DatabaseRepository = {
   },
 
   async truncateAll(): Promise<void> {
-    await db.execute(sql`TRUNCATE TABLE gasoil_despachos, gasoil_compras, gasoil_conteos, conduces, precios_cliente, equipos, empleados, servicios, clientes, gasoil_config RESTART IDENTITY CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE gasoil_despachos, gasoil_compras, gasoil_conteos, conduces, precios_cliente, equipos, empleados, servicios, minas, clientes, gasoil_config RESTART IDENTITY CASCADE`);
   },
 };

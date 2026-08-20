@@ -1,4 +1,31 @@
-import { FullInitialState, Cliente, Servicio, Empleado, EquipoVehiculo, Conduce, PrecioCliente, ConfiguracionGasoil, CompraGasoil, DespachoGasoil, ConteoGasoil } from '../types/index.ts';
+import { FullInitialState, Cliente, Mina, Servicio, Empleado, EquipoVehiculo, Conduce, PrecioCliente, ConfiguracionGasoil, CompraGasoil, DespachoGasoil, ConteoGasoil } from '../types/index.ts';
+
+export const INITIAL_MINAS: Mina[] = [
+  {
+    id: 'mina-1',
+    nombre: 'Mina San Cristóbal',
+    ubicacion: 'Km 20 Autopista Duarte, San Cristóbal',
+    contacto: 'Ramón Féliz',
+    telefono: '(809) 555-2201',
+    estado: 'Activo',
+  },
+  {
+    id: 'mina-2',
+    nombre: 'Cantera Los Alcarrizos',
+    ubicacion: 'Los Alcarrizos, Santo Domingo Oeste',
+    contacto: 'Elvin Castro',
+    telefono: '(809) 555-2244',
+    estado: 'Activo',
+  },
+  {
+    id: 'mina-3',
+    nombre: 'Mina Haina',
+    ubicacion: 'Autopista Manoguayabo - Haina Km 8',
+    contacto: 'Wander Reyes',
+    telefono: '(809) 555-2288',
+    estado: 'Activo',
+  },
+];
 
 export const INITIAL_CLIENTES: Cliente[] = [
   {
@@ -378,6 +405,8 @@ export const INITIAL_CONDUCES: Conduce[] = [
     clienteId: 'cli-2',
     clienteNombre: 'Desarrollos Urbanos Bisonó',
     obra: 'Residencial Alameda Real - Calle 3',
+    minaId: 'mina-2',
+    minaNombre: 'Cantera Los Alcarrizos',
     servicioId: 'srv-7',
     servicioDescripcion: 'Material de Relleno (Tierra Común)',
     material: 'Material de Relleno (Tierra Común)',
@@ -433,6 +462,8 @@ export const INITIAL_CONDUCES: Conduce[] = [
     clienteId: 'cli-4',
     clienteNombre: 'Torres del Este SRL',
     obra: 'Hotel Coral Bay - Zapatas Bloque C',
+    minaId: 'mina-1',
+    minaNombre: 'Mina San Cristóbal',
     servicioId: 'srv-5',
     servicioDescripcion: 'Grava 3/4"',
     material: 'Grava 3/4"',
@@ -548,6 +579,7 @@ export async function seedDatabaseIfNeeded(): Promise<void> {
   }
   console.log('[EQUIPROCI Seed] Base de datos vacía detectada. Insertando datos iniciales de ejemplo...');
   for (const c of INITIAL_CLIENTES) await DatabaseRepository.saveCliente(c);
+  for (const m of INITIAL_MINAS) await DatabaseRepository.saveMina(m);
   for (const s of INITIAL_SERVICIOS) await DatabaseRepository.saveServicio(s);
   for (const e of INITIAL_EMPLEADOS) await DatabaseRepository.saveEmpleado(e);
   for (const eq of INITIAL_EQUIPOS) await DatabaseRepository.saveEquipoVehiculo(eq);
