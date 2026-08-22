@@ -351,7 +351,16 @@ export function exportReporteMinaAgregadoPDF(
     numerosConduce?: string[];
   }>,
   dateRange: string,
-  filterMina: string = 'ALL'
+  filterMina: string = 'ALL',
+  detalleConduces: Array<{
+    fecha: string;
+    numeroConduce: string;
+    clienteNombre: string;
+    material: string;
+    cantidad: number;
+    precioUnitario: number;
+    totalMonto: number;
+  }> = []
 ) {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -421,6 +430,52 @@ export function exportReporteMinaAgregadoPDF(
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text(formatCurrency(grandTotal), 124, finalY + 21);
+
+  // Detalle de auditoría por conduce
+  doc.addPage();
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, 210, 32, 'F');
+  doc.setTextColor(245, 158, 11);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DETALLE DE AUDITORÍA POR CONDUCE', 14, 14);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(226, 232, 240);
+  doc.text(`Período: ${dateRange} | Mina: ${filterMina === 'ALL' ? 'Todas' : filterMina}`, 14, 22);
+
+  const detalleBody = detalleConduces.map((r) => [
+    formatDate(r.fecha),
+    r.numeroConduce,
+    r.clienteNombre,
+    r.material,
+    formatNumber(r.cantidad, 2),
+    formatCurrency(r.precioUnitario),
+    formatCurrency(r.totalMonto),
+  ]);
+
+  autoTable(doc, {
+    startY: 38,
+    theme: 'grid',
+    head: [['Fecha', 'No. Conduce', 'Cliente', 'Tipo de Agregado', 'Cantidad (m³)', 'Tarifa', 'Total RD$']],
+    body: detalleBody.length > 0 ? detalleBody : [['--', '--', 'Sin registros para los filtros seleccionados', '--', '--', '--', '--']],
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: [30, 41, 59],
+    },
+    columnStyles: {
+      1: { fontStyle: 'bold' },
+      4: { halign: 'center' },
+      5: { halign: 'right' },
+      6: { halign: 'right', fontStyle: 'bold' },
+    },
+  });
 
   doc.save(`Reporte_Mina_Agregado_${new Date().toISOString().split('T')[0]}.pdf`);
 }

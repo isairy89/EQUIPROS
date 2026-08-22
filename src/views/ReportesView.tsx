@@ -153,6 +153,22 @@ export const ReportesView: React.FC = () => {
     return Array.from(map.values()).sort((a, b) => a.minaNombre.localeCompare(b.minaNombre) || b.totalMonto - a.totalMonto);
   }, [filteredConduces]);
 
+  // 1c. Detalle de auditoría por conduce, para el Reporte por Mina y Tipo de Agregado
+  const reportByMinaDetalle = useMemo(() => {
+    return filteredConduces
+      .filter((c) => c.tipoConduce === 'MATERIAL' && c.minaId)
+      .map((c) => ({
+        fecha: c.fecha,
+        numeroConduce: c.numeroConduce,
+        clienteNombre: c.clienteNombre,
+        material: c.material || c.servicioDescripcion || 'Material General',
+        cantidad: Number(c.cantidad || 0),
+        precioUnitario: Number(c.precioUnitario || 0),
+        totalMonto: Number(c.totalMonto || 0),
+      }))
+      .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  }, [filteredConduces]);
+
   // 2. Reporte por Equipo / Maquinaria / Camión
   const reportByEquipo = useMemo(() => {
     const despachosPeriodo = gasoilDespachos.filter((d) => {
@@ -325,8 +341,19 @@ export const ReportesView: React.FC = () => {
         'Total Facturado RD$': r.totalMonto,
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
+      const detalleRows = reportByMinaDetalle.map((r) => ({
+        'Fecha': formatDate(r.fecha),
+        'No. Conduce': r.numeroConduce,
+        'Cliente': r.clienteNombre,
+        'Tipo de Agregado': r.material,
+        'Cantidad (m³)': r.cantidad,
+        'Tarifa': r.precioUnitario,
+        'Total RD$': r.totalMonto,
+      }));
+      const wsDetalle = XLSX.utils.json_to_sheet(detalleRows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Reporte Mina Agregado');
+      XLSX.utils.book_append_sheet(wb, wsDetalle, 'Detalle Auditoría');
       XLSX.writeFile(wb, `Reporte_Mina_Agregado_${fechaInicio}_al_${fechaFin}.xlsx`);
     } else if (reportType === 'equipos') {
       const rows = reportByEquipo.map((r) => ({
@@ -363,7 +390,7 @@ export const ReportesView: React.FC = () => {
       exportReporteMinaPDF(reportByMina, periodoStr, selectedMina);
     } else if (reportType === 'minaAgregado') {
       const minaFiltroNombre = selectedMinaId === 'ALL' ? 'ALL' : minas.find((m) => m.id === selectedMinaId)?.nombre || 'ALL';
-      exportReporteMinaAgregadoPDF(reportByMinaAgregado, periodoStr, minaFiltroNombre);
+      exportReporteMinaAgregadoPDF(reportByMinaAgregado, periodoStr, minaFiltroNombre, reportByMinaDetalle);
     } else if (reportType === 'equipos') {
       exportReporteEquipoPDF(reportByEquipo, periodoStr, selectedEquipoFicha);
     } else {
@@ -686,6 +713,62 @@ export const ReportesView: React.FC = () => {
                         {formatNumber(row.totalM3, 1)} m³
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm">
+                        {formatCurrency(row.totalMonto)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT 1c: Detalle de Auditoría por Conduce (Mina) */}
+      {reportType === 'minaAgregado' && (
+        <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-4 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center text-xs">
+            <span className="font-bold text-slate-200 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-amber-400" />
+              Detalle de Auditoría por Conduce
+            </span>
+            <span className="text-slate-400">{reportByMinaDetalle.length} conduces</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-800/80 text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-700/80">
+                <tr>
+                  <th className="py-3 px-4">Fecha</th>
+                  <th className="py-3 px-4">No. Conduce</th>
+                  <th className="py-3 px-4">Cliente</th>
+                  <th className="py-3 px-4">Tipo de Agregado</th>
+                  <th className="py-3 px-4 text-center">Cantidad (m³)</th>
+                  <th className="py-3 px-4 text-right">Tarifa</th>
+                  <th className="py-3 px-4 text-right">Total RD$</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/70 text-slate-300">
+                {reportByMinaDetalle.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-500">
+                      No hay conduces de materiales vinculados a una mina para los filtros seleccionados.
+                    </td>
+                  </tr>
+                ) : (
+                  reportByMinaDetalle.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4 font-mono text-slate-400">{formatDate(row.fecha)}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-amber-400">{row.numeroConduce}</td>
+                      <td className="py-3 px-4 text-slate-200 font-semibold">{row.clienteNombre}</td>
+                      <td className="py-3 px-4 text-slate-300">{row.material}</td>
+                      <td className="py-3 px-4 text-center font-mono font-bold text-purple-400">
+                        {formatNumber(row.cantidad, 2)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-slate-400">
+                        {formatCurrency(row.precioUnitario)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
                         {formatCurrency(row.totalMonto)}
                       </td>
                     </tr>

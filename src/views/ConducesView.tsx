@@ -110,14 +110,19 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
   const servicioSeleccionado = servicios.find((s) => s.id === formServicioId);
   const materialUnidad = (servicioSeleccionado?.unidadMedida || '').toUpperCase();
 
-  // Al abrir para crear, si viene un tipo predefinido (acceso rápido) lo aplicamos directamente.
+  // Al abrir para crear (desde Sidebar, Header o Panel Central), siempre partimos de un formulario
+  // limpio antes de aplicar el tipo predefinido, para que ningún campo (mina, chofer, equipo, etc.)
+  // arrastre valores de una creación anterior sin importar el disparador usado.
   useEffect(() => {
     if (isCreateOpen && !editingConduce) {
-      setFormTipoConduce(createPresetTipo || null);
-      if (createPresetTipo === 'MATERIAL') setFormViajes('1');
+      resetForm();
+      if (createPresetTipo) {
+        setFormTipoConduce(createPresetTipo);
+        if (createPresetTipo === 'MATERIAL') setFormViajes('1');
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCreateOpen]);
+  }, [isCreateOpen, createPresetTipo]);
 
   const handleClienteChange = (clienteId: string) => {
     setFormClienteId(clienteId);
