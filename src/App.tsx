@@ -21,18 +21,23 @@ import { ReportesView } from './views/ReportesView.tsx';
 import { AjustesView } from './views/AjustesView.tsx';
 
 // Login component
-import { Flame, Lock, User, ShieldCheck } from 'lucide-react';
+import { Flame, Lock, User, ShieldCheck, AlertCircle } from 'lucide-react';
 
 const LoginScreen: React.FC = () => {
   const { handleLogin } = useApp();
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await handleLogin(user, pass);
+    setLoginError('');
+    const result = await handleLogin(user, pass);
+    if (!result.success) {
+      setLoginError(result.error || 'Usuario o contraseña incorrectos.');
+    }
     setIsSubmitting(false);
   };
 
@@ -54,6 +59,13 @@ const LoginScreen: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {loginError && (
+            <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-rose-950/60 border border-rose-800/60 text-rose-300 text-xs font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-slate-300 block mb-1">Usuario</label>
             <div className="relative">
@@ -62,7 +74,10 @@ const LoginScreen: React.FC = () => {
                 type="text"
                 required
                 value={user}
-                onChange={(e) => setUser(e.target.value)}
+                onChange={(e) => {
+                  setUser(e.target.value);
+                  if (loginError) setLoginError('');
+                }}
                 className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
                 placeholder="admin"
               />
@@ -77,7 +92,10 @@ const LoginScreen: React.FC = () => {
                 type="password"
                 required
                 value={pass}
-                onChange={(e) => setPass(e.target.value)}
+                onChange={(e) => {
+                  setPass(e.target.value);
+                  if (loginError) setLoginError('');
+                }}
                 className="w-full pl-9 pr-3 py-2 bg-slate-800/70 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono"
                 placeholder="••••••••"
               />
@@ -93,6 +111,8 @@ const LoginScreen: React.FC = () => {
           </button>
         </form>
       </div>
+
+      <ToastContainer />
     </div>
   );
 };

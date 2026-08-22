@@ -122,7 +122,15 @@ export const ReportesView: React.FC = () => {
   const reportByMinaAgregado = useMemo(() => {
     const map = new Map<
       string,
-      { minaNombre: string; material: string; totalConduces: number; totalViajes: number; totalM3: number; totalMonto: number }
+      {
+        minaNombre: string;
+        material: string;
+        totalConduces: number;
+        totalViajes: number;
+        totalM3: number;
+        totalMonto: number;
+        numerosConduce: string[];
+      }
     >();
 
     filteredConduces
@@ -132,13 +140,14 @@ export const ReportesView: React.FC = () => {
         const material = c.material || c.servicioDescripcion || 'Material General';
         const key = `${minaNombre}__${material}`;
         if (!map.has(key)) {
-          map.set(key, { minaNombre, material, totalConduces: 0, totalViajes: 0, totalM3: 0, totalMonto: 0 });
+          map.set(key, { minaNombre, material, totalConduces: 0, totalViajes: 0, totalM3: 0, totalMonto: 0, numerosConduce: [] });
         }
         const group = map.get(key)!;
         group.totalConduces += 1;
         group.totalViajes += Number(c.viajes || 0);
         group.totalM3 += Number((c.unidadMedida || '').toLowerCase() === 'm3' ? c.cantidad : 0);
         group.totalMonto += Number(c.totalMonto || 0);
+        group.numerosConduce.push(c.numeroConduce);
       });
 
     return Array.from(map.values()).sort((a, b) => a.minaNombre.localeCompare(b.minaNombre) || b.totalMonto - a.totalMonto);
@@ -309,6 +318,7 @@ export const ReportesView: React.FC = () => {
       const rows = reportByMinaAgregado.map((r) => ({
         'Mina': r.minaNombre,
         'Material / Agregado': r.material,
+        '# Conduces': r.numerosConduce.join(', '),
         'Total Conduces': r.totalConduces,
         'Viajes Realizados': r.totalViajes,
         'Metros Cúbicos (m³)': r.totalM3,
@@ -641,6 +651,7 @@ export const ReportesView: React.FC = () => {
                 <tr>
                   <th className="py-3 px-4">Mina</th>
                   <th className="py-3 px-4">Material / Agregado</th>
+                  <th className="py-3 px-4"># Conduces</th>
                   <th className="py-3 px-4 text-center">Conduces</th>
                   <th className="py-3 px-4 text-center">Viajes</th>
                   <th className="py-3 px-4 text-center">Metros (m³)</th>
@@ -650,7 +661,7 @@ export const ReportesView: React.FC = () => {
               <tbody className="divide-y divide-slate-800/70 text-slate-300">
                 {reportByMinaAgregado.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <td colSpan={7} className="py-8 text-center text-slate-500">
                       No hay conduces de materiales vinculados a una mina para los filtros seleccionados.
                     </td>
                   </tr>
@@ -659,6 +670,12 @@ export const ReportesView: React.FC = () => {
                     <tr key={idx} className="hover:bg-slate-800/40 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-amber-400">{row.minaNombre}</td>
                       <td className="py-3.5 px-4 text-slate-200">{row.material}</td>
+                      <td
+                        className="py-3.5 px-4 text-slate-400 font-mono text-[10px] max-w-[220px] truncate"
+                        title={row.numerosConduce.join(', ')}
+                      >
+                        {row.numerosConduce.join(', ')}
+                      </td>
                       <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-200">
                         {row.totalConduces}
                       </td>
@@ -774,6 +791,7 @@ export const ReportesView: React.FC = () => {
               <thead className="bg-slate-800/80 text-slate-300 uppercase text-[10px] tracking-wider border-b border-slate-700/80">
                 <tr>
                   <th className="py-3 px-4">Cliente / RNC</th>
+                  <th className="py-3 px-4"># Conduces</th>
                   <th className="py-3 px-4 text-center">Conduces</th>
                   <th className="py-3 px-4 text-center">Horas</th>
                   <th className="py-3 px-4 text-center">Viajes</th>
@@ -792,6 +810,12 @@ export const ReportesView: React.FC = () => {
                       <div className="text-[10px] text-slate-400 font-mono font-normal">
                         RNC: {r.cliente.rnc}
                       </div>
+                    </td>
+                    <td
+                      className="py-3.5 px-4 text-slate-400 font-mono text-[10px] max-w-[220px] truncate"
+                      title={r.conduces.map((c) => c.numeroConduce).join(', ')}
+                    >
+                      {r.conduces.map((c) => c.numeroConduce).join(', ') || '-'}
                     </td>
                     <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-200">
                       {r.totalConduces}

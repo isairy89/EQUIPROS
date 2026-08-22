@@ -111,7 +111,7 @@ interface AppContextType {
   importJSONBackup: (jsonContent: string) => Promise<void>;
 
   // Auth
-  handleLogin: (user: string, pass: string) => Promise<boolean>;
+  handleLogin: (user: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   handleLogout: () => Promise<void>;
 }
 
@@ -629,16 +629,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const handleLogin = async (user: string, pass: string): Promise<boolean> => {
+  const handleLogin = async (user: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await ApiService.login(user, pass);
       setIsLoggedIn(true);
       setCurrentUser(res.user);
       showToast('Bienvenido a EQUIPROCI, ' + res.user.name, 'success');
-      return true;
+      await refreshData();
+      return { success: true };
     } catch (err: any) {
-      showToast(err.message || 'Error de autenticación', 'error');
-      return false;
+      const message = err.message || 'Error de autenticación';
+      showToast(message, 'error');
+      return { success: false, error: message };
     }
   };
 

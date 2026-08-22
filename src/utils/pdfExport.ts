@@ -341,7 +341,15 @@ export function exportReporteMinaPDF(
 
 // 3b. Export Reporte por Mina de Origen y Tipo de Agregado PDF
 export function exportReporteMinaAgregadoPDF(
-  reportData: Array<{ minaNombre: string; material: string; totalConduces: number; totalViajes: number; totalM3: number; totalMonto: number }>,
+  reportData: Array<{
+    minaNombre: string;
+    material: string;
+    totalConduces: number;
+    totalViajes: number;
+    totalM3: number;
+    totalMonto: number;
+    numerosConduce?: string[];
+  }>,
   dateRange: string,
   filterMina: string = 'ALL'
 ) {
@@ -367,6 +375,7 @@ export function exportReporteMinaAgregadoPDF(
   const tableBody = reportData.map((r) => [
     r.minaNombre,
     r.material,
+    (r.numerosConduce || []).join(', '),
     r.totalConduces.toString(),
     `${r.totalViajes} vjs`,
     `${formatNumber(r.totalM3, 1)} m³`,
@@ -376,8 +385,11 @@ export function exportReporteMinaAgregadoPDF(
   autoTable(doc, {
     startY: 38,
     theme: 'grid',
-    head: [['Mina', 'Material / Agregado', 'Conduces', 'Viajes', 'Metros (m³)', 'Total RD$']],
-    body: tableBody.length > 0 ? tableBody : [['--', 'Sin registros para los filtros seleccionados', '--', '--', '--', '--']],
+    head: [['Mina', 'Material / Agregado', '# Conduces', 'Conduces', 'Viajes', 'Metros (m³)', 'Total RD$']],
+    body:
+      tableBody.length > 0
+        ? tableBody
+        : [['--', 'Sin registros para los filtros seleccionados', '--', '--', '--', '--', '--']],
     headStyles: {
       fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
@@ -390,10 +402,11 @@ export function exportReporteMinaAgregadoPDF(
     },
     columnStyles: {
       0: { fontStyle: 'bold' },
-      2: { halign: 'center' },
+      2: { fontSize: 6.5 },
       3: { halign: 'center' },
       4: { halign: 'center' },
-      5: { halign: 'right', fontStyle: 'bold' },
+      5: { halign: 'center' },
+      6: { halign: 'right', fontStyle: 'bold' },
     },
   });
 

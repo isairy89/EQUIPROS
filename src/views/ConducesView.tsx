@@ -79,6 +79,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
   const [formTipoConduce, setFormTipoConduce] = useState<TipoConduce | null>(null);
 
   // Campos comunes
+  const [formNumeroConduce, setFormNumeroConduce] = useState('');
   const [formFecha, setFormFecha] = useState(getTodayString());
   const [formHora, setFormHora] = useState(getCurrentTimeString());
   const [formClienteId, setFormClienteId] = useState('');
@@ -146,6 +147,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
   const resetForm = () => {
     setEditingConduce(null);
     setFormTipoConduce(null);
+    setFormNumeroConduce('');
     setFormFecha(getTodayString());
     setFormHora(getCurrentTimeString());
     setFormClienteId('');
@@ -173,6 +175,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
   const handleOpenEdit = (conduce: Conduce) => {
     setEditingConduce(conduce);
     setFormTipoConduce(conduce.tipoConduce || 'MATERIAL');
+    setFormNumeroConduce(conduce.numeroConduce || '');
     setFormFecha(conduce.fecha);
     setFormHora(conduce.hora || getCurrentTimeString());
     setFormClienteId(conduce.clienteId);
@@ -222,6 +225,17 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
     if (!formClienteId || !formServicioId || !formObra.trim()) {
       alert('Por favor complete cliente, proyecto/ubicación y servicio.');
       return;
+    }
+
+    const numeroConduceManual = formNumeroConduce.trim();
+    if (numeroConduceManual) {
+      const duplicado = conduces.some(
+        (c) => c.numeroConduce.toLowerCase() === numeroConduceManual.toLowerCase() && c.id !== editingConduce?.id
+      );
+      if (duplicado) {
+        alert(`Ya existe un conduce registrado con el número "${numeroConduceManual}". Ingrese un número diferente.`);
+        return;
+      }
     }
 
     const precioNum = Number(formPrecioUnitario);
@@ -304,7 +318,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
 
     const payload: Partial<Conduce> = {
       id: editingConduce ? editingConduce.id : undefined,
-      numeroConduce: editingConduce ? editingConduce.numeroConduce : undefined,
+      numeroConduce: numeroConduceManual || (editingConduce ? editingConduce.numeroConduce : undefined),
       tipoConduce: formTipoConduce,
       fecha: formFecha,
       hora: formHora,
@@ -756,8 +770,18 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
               </button>
             )}
 
-            {/* Fecha, Hora, Estado */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Número de Conduce, Fecha, Hora, Estado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">Número de Conduce</label>
+                <input
+                  type="text"
+                  placeholder="Autogenerado si se deja vacío"
+                  value={formNumeroConduce}
+                  onChange={(e) => setFormNumeroConduce(e.target.value)}
+                  className="w-full py-2 px-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:border-amber-500 focus:outline-none font-mono"
+                />
+              </div>
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1">Fecha del Trabajo *</label>
                 <input
@@ -955,7 +979,7 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3 pt-2 border-t border-slate-700/60">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className={`grid grid-cols-1 gap-3 ${materialUnidad === 'M3' ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
                     {materialUnidad === 'M3' && (
                       <div>
                         <label className="text-xs font-semibold text-slate-300 block mb-1">Capacidad Camión (m³) *</label>
@@ -983,8 +1007,18 @@ export const ConducesView: React.FC<ConducesViewProps> = ({
                       />
                     </div>
                     {materialUnidad === 'M3' && (
+                      <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-center">
+                        <span className="text-[10px] text-purple-300 uppercase font-bold block">Total m³ Calculado</span>
+                        <span className="text-lg font-black text-purple-400 font-mono">
+                          {Number(formCapacidadCamion) > 0 && Number(formViajes) > 0
+                            ? formatNumber(Number(formCapacidadCamion) * Number(formViajes), 2)
+                            : '—'}
+                        </span>
+                      </div>
+                    )}
+                    {materialUnidad === 'M3' && (
                       <div>
-                        <label className="text-xs font-semibold text-slate-300 block mb-1">Total Metros (m³) *</label>
+                        <label className="text-xs font-semibold text-slate-300 block mb-1">Total Metros (m³) Reales *</label>
                         <input
                           type="number"
                           step="any"
