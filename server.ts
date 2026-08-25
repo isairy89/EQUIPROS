@@ -123,6 +123,24 @@ async function startServer() {
     }
   });
 
+  // Borrar TODOS los datos registrados por el usuario (deja el sistema completamente vacío, sin re-sembrar demo).
+  // Requiere confirmación explícita del cliente además del gate de entorno, ya que es irreversible.
+  app.post('/api/wipe-all-data', async (req: Request, res: Response, next: NextFunction) => {
+    if (process.env.ALLOW_DATA_RESET !== 'true') {
+      return res.status(403).json({ error: 'El borrado de datos está deshabilitado en este entorno.' });
+    }
+    if (req.body?.confirm !== 'BORRAR TODO') {
+      return res.status(400).json({ error: 'Frase de confirmación inválida.' });
+    }
+    try {
+      await DatabaseRepository.truncateAll();
+      const data = await DatabaseRepository.getFullInitialState();
+      res.json({ success: true, data });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // --- Clientes ---
   app.get('/api/clientes', async (req: Request, res: Response, next: NextFunction) => {
     try {

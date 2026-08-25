@@ -110,6 +110,14 @@ export const ApiService = {
     return res.data;
   },
 
+  async wipeAllData(confirmPhrase: string): Promise<FullInitialState> {
+    const res = await request<{ success: boolean; data: FullInitialState }>('/api/wipe-all-data', {
+      method: 'POST',
+      body: JSON.stringify({ confirm: confirmPhrase }),
+    });
+    return res.data;
+  },
+
   // Clientes
   async getClientes(): Promise<Cliente[]> {
     return request<Cliente[]>('/api/clientes');

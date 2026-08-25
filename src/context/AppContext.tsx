@@ -107,6 +107,7 @@ interface AppContextType {
 
   refreshData: () => Promise<void>;
   resetToSampleData: () => Promise<void>;
+  wipeAllData: (confirmPhrase: string) => Promise<void>;
   exportJSONBackup: () => void;
   importJSONBackup: (jsonContent: string) => Promise<void>;
 
@@ -591,6 +592,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const wipeAllData = async (confirmPhrase: string): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const res = await ApiService.wipeAllData(confirmPhrase);
+      applyFullState(res);
+      showToast('Todos los datos registrados fueron borrados permanentemente', 'success');
+    } catch (err: any) {
+      showToast('Error al borrar los datos: ' + err.message, 'error');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const exportJSONBackup = () => {
     const data: FullInitialState = {
       clientes,
@@ -698,6 +713,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteGasoilConteo,
         refreshData,
         resetToSampleData,
+        wipeAllData,
         exportJSONBackup,
         importJSONBackup,
         handleLogin,

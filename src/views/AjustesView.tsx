@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext.tsx';
+import { Modal } from '../components/Modal.tsx';
 import {
   Settings,
   Download,
@@ -9,21 +10,48 @@ import {
   Database,
   Building,
   Server,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
+
+const WIPE_CONFIRM_PHRASE = 'BORRAR TODO';
 
 export const AjustesView: React.FC = () => {
   const {
     exportJSONBackup,
     importJSONBackup,
     resetToSampleData,
+    wipeAllData,
     clientes,
     servicios,
     conduces,
     empleados,
     equipos,
+    minas,
   } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
+  const [wipeConfirmInput, setWipeConfirmInput] = useState('');
+  const [isWiping, setIsWiping] = useState(false);
+
+  const closeWipeModal = () => {
+    setIsWipeModalOpen(false);
+    setWipeConfirmInput('');
+  };
+
+  const handleConfirmWipe = async () => {
+    if (wipeConfirmInput !== WIPE_CONFIRM_PHRASE) return;
+    setIsWiping(true);
+    try {
+      await wipeAllData(wipeConfirmInput);
+      closeWipeModal();
+    } catch {
+      // El error ya se muestra vía toast en el contexto.
+    } finally {
+      setIsWiping(false);
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -166,6 +194,81 @@ export const AjustesView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Danger Zone: Wipe ALL user-registered data (irreversible, no reseed) */}
+      <div className="bg-rose-950/40 border-2 border-rose-800/60 rounded-2xl p-5 shadow-xl space-y-3">
+        <h3 className="text-sm font-bold text-rose-300 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-rose-400" />
+          Borrar TODOS los Datos Registrados
+        </h3>
+        <p className="text-xs text-rose-200/80">
+          Esta acción borra <strong>permanentemente</strong> todos los conduces, clientes, minas, servicios,
+          empleados, equipos y registros de combustible que el usuario ha ingresado en el sistema, dejando la
+          base de datos completamente vacía (sin restaurar datos de demostración). No se puede deshacer.
+          Descargue un Backup JSON antes de continuar si desea conservar un respaldo.
+        </p>
+
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsWipeModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-rose-700/40 hover:bg-rose-700/60 text-rose-200 border border-rose-700/60 rounded-xl text-xs font-black transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            Borrar Todos los Datos
+          </button>
+        </div>
+      </div>
+
+      <Modal
+        isOpen={isWipeModalOpen}
+        onClose={closeWipeModal}
+        title="Confirmar Borrado Total de Datos"
+        subtitle="Esta acción es irreversible"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-rose-950/50 border border-rose-800/60 rounded-xl text-xs text-rose-200 space-y-1.5">
+            <p>
+              Está a punto de borrar <strong>{conduces.length}</strong> conduces, <strong>{clientes.length}</strong>{' '}
+              clientes, <strong>{minas.length}</strong> minas, <strong>{servicios.length}</strong> servicios,{' '}
+              <strong>{empleados.length}</strong> empleados y <strong>{equipos.length}</strong> equipos.
+            </p>
+            <p className="font-bold">Esta acción no se puede deshacer.</p>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+              Para confirmar, escriba exactamente: <span className="font-mono text-rose-300">{WIPE_CONFIRM_PHRASE}</span>
+            </label>
+            <input
+              type="text"
+              autoComplete="off"
+              value={wipeConfirmInput}
+              onChange={(e) => setWipeConfirmInput(e.target.value)}
+              placeholder={WIPE_CONFIRM_PHRASE}
+              className="w-full py-2 px-3 bg-slate-800 border border-rose-800/60 rounded-xl text-sm text-slate-100 font-mono focus:border-rose-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={closeWipeModal}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={wipeConfirmInput !== WIPE_CONFIRM_PHRASE || isWiping}
+              onClick={handleConfirmWipe}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-900 disabled:text-rose-500/50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black transition-colors cursor-pointer"
+            >
+              {isWiping ? 'Borrando...' : 'Borrar Permanentemente'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
